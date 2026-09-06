@@ -1,0 +1,19 @@
+{
+  "name": "ironpulse-backend",
+  "version": "1.0.0",
+  "description": "IronPulse Backend REST API service",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "fitness",
+    "gym-scheduler",
+    "api",
+    "postgres",
+    "ironpulse"
+  ],
+  "author": "IronPulse Team",
+  "license": "MIT"
+}

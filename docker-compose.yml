@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: ./ironpulse_app
+      dockerfile: Dockerfile
+    container_name: ironpulse_app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gym_scheduler_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gym_user
+      POSTGRES_PASSWORD: gym_password
+      POSTGRES_DB: gym_scheduler
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+
+volumes:
+  postgres_data:

@@ -1,0 +1,18 @@
+{
+  "name": "IronPulse - Resistance & Workout Logger",
+  "short_name": "IronPulse",
+  "description": "Zero-latency offline-first resistance tracking and workout logger for lifters",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f131d",
+  "theme_color": "#0f131d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

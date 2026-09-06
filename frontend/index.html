@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <meta name="theme-color" content="#0f131d"/>
+  <meta name="description" content="IronPulse - Personalized Resistance & Workout Logger"/>
+  <link rel="manifest" href="./manifest.json"/>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml"/>
+  <title>IronPulse | Schedule & Workout Logger</title>
+
+  <!-- Google Fonts & Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=inter:wght@300;400;500;600;700&family=jetbrainsMono:wght@400;500;600;700&family=spaceGrotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- Base Custom Styling -->
+  <style>
+    @layer base {
+      html, body {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #0f131d;
+        color: #dfe2f1;
+      }
+      body {
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#0f131d",
+            "surface-dim": "#0f131d",
+            "surface-bright": "#353944",
+            "surface-container-lowest": "#0a0e18",
+            "surface-container-low": "#171b26",
+            "surface-container": "#1c1f2a",
+            "surface-container-high": "#262a35",
+            "surface-container-highest": "#313540",
+            "on-surface": "#dfe2f1",
+            "on-surface-variant": "#9ca3af",
+            "primary": "#ffc174",
+            "primary-container": "#f59e0b",
+            "on-primary": "#472a00",
+            "on-primary-container": "#613b00",
+            "secondary": "#4edea3",
+            "secondary-container": "#00a572",
+            "on-secondary": "#003824",
+            "on-secondary-container": "#00311f",
+            "tertiary": "#8ed5ff",
+            "tertiary-container": "#38bdf8",
+            "on-tertiary": "#00354a",
+            "on-tertiary-container": "#004965",
+            "error": "#ffb4ab",
+            "error-container": "#93000a",
+            "on-error": "#690005"
+          },
+          spacing: {
+            "space-2xs": "0.25rem",
+            "space-xs": "0.5rem",
+            "space-sm": "0.75rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-2xl": "3rem",
+            "touch-min": "48px",
+            "touch-compact": "44px",
+            "gutter-mobile": "1rem",
+            "gutter-tablet": "1.5rem",
+            "gutter-desktop": "2rem"
+          },
+          fontFamily: {
+            "headline-sm": ["spaceGrotesk", "sans-serif"],
+            "headline-md": ["spaceGrotesk", "sans-serif"],
+            "headline-lg": ["spaceGrotesk", "sans-serif"],
+            "headline-xl": ["spaceGrotesk", "sans-serif"],
+            "body-sm": ["inter", "sans-serif"],
+            "body-md": ["inter", "sans-serif"],
+            "body-lg": ["inter", "sans-serif"],
+            "label-numeric-sm": ["jetbrainsMono", "monospace"],
+            "label-numeric-md": ["jetbrainsMono", "monospace"],
+            "label-numeric-lg": ["jetbrainsMono", "monospace"],
+            "label-caps": ["jetbrainsMono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Dexie.js for IndexedDB -->
+  <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen select-none">
+
+  <!-- Fixed Top Header -->
+  <header class="fixed top-0 w-full z-40 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container-high/40">
+    <div class="h-16 px-gutter-mobile flex items-center justify-between gap-space-xs max-w-4xl mx-auto">
+      <div class="flex items-center gap-space-xs cursor-pointer" onclick="window.location.hash='workout'">
+        <div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center border border-primary/30">
+          <svg class="w-5 h-5" viewBox="0 0 64 64" fill="none">
+            <path d="M12 34L20 34L25 18L32 46L39 26L44 34L52 34" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="52" cy="34" r="4" fill="#10B981"/>
+          </svg>
+        </div>
+        <div class="flex flex-col">
+          <span class="font-headline-sm text-headline-sm tracking-tight text-on-surface uppercase leading-none font-bold">IronPulse</span>
+          <span class="font-label-caps text-[10px] text-primary uppercase tracking-widest font-semibold">Resistance & Workout</span>
+        </div>
+      </div>
+
+      <!-- Header Controls (Unit Switcher KG/LBS + Settings) -->
+      <div class="flex items-center gap-space-xs">
+        <!-- KG / LBS Unit Toggle Pill -->
+        <div class="flex items-center bg-surface-container-high p-0.5 rounded-lg border border-surface-container-highest">
+          <button id="unitKgBtn" class="px-2.5 py-1 rounded-md font-label-caps text-xs font-bold transition-all bg-primary-container text-on-primary shadow-sm" type="button">KG</button>
+          <button id="unitLbsBtn" class="px-2.5 py-1 rounded-md font-label-caps text-xs font-bold transition-all text-on-surface-variant hover:text-on-surface" type="button">LBS</button>
+        </div>
+
+        <button onclick="window.location.hash='sync'" class="w-9 h-9 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface flex items-center justify-center active:scale-95 transition-transform" title="Settings & Backup">
+          <span class="material-symbols-outlined text-[20px]">settings</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex flex-col relative w-full pt-16 pb-28 px-gutter-mobile max-w-4xl mx-auto min-h-screen">
+    
+    <!-- ========================================================================= -->
+    <!-- SCREEN 1: UNIFIED ACTIVE WORKOUT & ROUTINE LOGGER (#workout)              -->
+    <!-- ========================================================================= -->
+    <section id="workoutScreen" class="flex flex-col w-full pb-20 gap-space-sm">
+      
+      <!-- Routine Title Header -->
+      <div class="flex flex-col gap-space-xs mt-3 mb-space-xs">
+        <div>
+          <div class="flex items-baseline justify-between">
+            <h1 class="font-headline-md text-headline-md tracking-tight text-on-surface font-bold">Workout & Weekly Routine</h1>
+            <span id="mesocycleBadge" class="font-label-caps text-[11px] text-primary bg-primary-container/10 border border-primary/20 px-2 py-0.5 rounded font-bold">MESOCYCLE WK 3</span>
+          </div>
+          <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">7-Day athletic progression • Drag, reorder, or toggle rest states</p>
+        </div>
+      </div>
+
+      <!-- Quick Split Template Selector (Scrollable horizontally) -->
+      <div class="flex items-center gap-space-xs overflow-x-auto pb-space-xs -mx-gutter-mobile px-gutter-mobile no-scrollbar">
+        <button type="button" data-split-id="ppl" class="split-pill flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-container text-on-primary font-label-caps text-label-caps whitespace-nowrap shadow-sm active:scale-95 transition-transform font-bold">
+          <span class="material-symbols-outlined text-[16px]">check</span>
+          PUSH / PULL / LEGS
+        </button>
+        <button type="button" data-split-id="upper_lower" class="split-pill flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-caps text-label-caps whitespace-nowrap active:scale-95 transition-all">
+          UPPER / LOWER (4-DAY)
+        </button>
+        <button type="button" data-split-id="full_body" class="split-pill flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-caps text-label-caps whitespace-nowrap active:scale-95 transition-all">
+          FULL BODY (3-DAY)
+        </button>
+        <button type="button" data-split-id="bro_split" class="split-pill flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-caps text-label-caps whitespace-nowrap active:scale-95 transition-all">
+          BRO SPLIT (5-DAY)
+        </button>
+      </div>
+
+      <!-- 7-Day Weekday Tracker Strip -->
+      <div class="mt-1 mb-2">
+        <div id="unifiedDaysStrip" class="grid grid-cols-7 gap-1.5">
+          <!-- Injected dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Target Session Header Card -->
+      <div class="bg-surface-container rounded-xl p-space-md shadow-md border border-surface-container-high/40">
+        <div class="flex items-start justify-between gap-space-xs mb-space-xs">
+          <div class="flex flex-col">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-primary"></span>
+              <span class="font-label-caps text-label-caps text-primary font-bold tracking-widest uppercase text-xs">Target Session</span>
+            </div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <button id="prevDayBtn" class="w-7 h-7 rounded-md bg-surface-container-high hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90 transition-transform" title="Previous Day">
+                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+              <h2 id="targetSessionTitle" class="font-headline-sm text-headline-sm text-on-surface font-bold">Monday • Push Power & Chest</h2>
+              <button id="nextDayBtn" class="w-7 h-7 rounded-md bg-surface-container-high hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90 transition-transform" title="Next Day">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="flex items-center gap-1.5">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-tertiary font-label-numeric-sm font-semibold">
+              <span class="material-symbols-outlined text-[15px] text-tertiary">timer</span>
+              <span id="elapsed-timer">00:00</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Telemetry Metrics Strip -->
+        <div class="grid grid-cols-3 gap-2 py-2 px-2.5 rounded-lg bg-surface-container-lowest mb-space-sm border border-surface-container-high/30">
+          <div class="flex flex-col">
+            <span class="font-label-caps text-[10px] text-on-surface-variant uppercase font-bold">TOTAL MOVEMENTS</span>
+            <span id="targetSessionMovementsCount" class="font-label-numeric-md text-label-numeric-md text-on-surface font-bold">0 Items</span>
+          </div>
+          <div class="flex flex-col border-l border-surface-container-high pl-2">
+            <span class="font-label-caps text-[10px] text-on-surface-variant uppercase font-bold">VOLUME LOAD</span>
+            <span id="targetSessionVolumeSets" class="font-label-numeric-md text-label-numeric-md text-primary font-bold">0 Sets</span>
+          </div>
+          <div class="flex flex-col border-l border-surface-container-high pl-2">
+            <span class="font-label-caps text-[10px] text-on-surface-variant uppercase font-bold">EST. DURATION</span>
+            <span id="targetSessionEstDuration" class="font-label-numeric-md text-label-numeric-md text-secondary font-bold">~0 min</span>
+          </div>
+        </div>
+
+        <!-- Rest Toggle & Quick Add Bar -->
+        <div class="flex items-center justify-between pt-1 gap-2">
+          <div class="flex items-center gap-2 bg-surface-container-high px-3 py-1.5 rounded-lg">
+            <button class="relative inline-flex h-5 w-9 items-center rounded-full bg-surface-container-lowest transition-colors focus:outline-none" id="restToggleBtn" type="button">
+              <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-on-surface-variant transition-transform translate-x-1" id="restToggleKnob"></span>
+            </button>
+            <span class="font-label-caps text-label-caps text-on-surface-variant font-bold text-xs">REST DAY MODE</span>
+          </div>
+          <button id="addExerciseToDayBtn" class="flex-1 min-h-[40px] px-3 py-1.5 rounded-lg bg-primary-container text-on-primary font-label-caps text-label-caps font-bold flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-transform" type="button">
+            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+            <span>ADD EXERCISE</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Reorderable Scheduled & Active Exercises Stack -->
+      <div id="unifiedExercisesContainer" class="flex flex-col gap-space-sm mt-1">
+        <!-- Injected dynamically by app.js -->
+      </div>
+
+      <!-- Tap to Browse Catalog Card -->
+      <div id="browseCatalogCardBtn" class="bg-surface-container-low hover:bg-surface-container border border-primary/30 rounded-xl p-space-md flex items-center justify-center gap-2 text-primary font-label-caps text-label-caps uppercase tracking-wider font-bold shadow-md cursor-pointer active:scale-98 transition-all">
+        <span class="material-symbols-outlined text-[22px]">library_add</span>
+        <span>TAP TO BROWSE 187+ EXERCISE CATALOG OR CUSTOM</span>
+      </div>
+
+      <!-- Cycle Schedule Accordion Section -->
+      <div class="flex flex-col gap-space-xs mt-3">
+        <span class="font-label-caps text-xs text-on-surface-variant font-bold uppercase tracking-wider px-1">CYCLE SCHEDULE ACCORDION</span>
+        <div id="cycleScheduleAccordion" class="flex flex-col gap-2">
+          <!-- Injected dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Bottom Sticky Action Buttons -->
+      <div class="flex items-center gap-2 mt-4">
+        <button id="saveRoutineLocalBtn" class="flex-1 h-12 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface font-headline-sm text-sm uppercase flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform border border-surface-container-highest">
+          <span class="material-symbols-outlined text-[18px]">save</span>
+          <span>SAVE ROUTINE</span>
+        </button>
+        <button id="startTodayWorkoutBtn" class="flex-1 h-12 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary font-headline-sm text-sm uppercase flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform font-bold">
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+          <span id="startTodayWorkoutBtnText">START TODAY'S PUSH</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: EXERCISE CATALOG (#exercises)    -->
+    <!-- ========================================== -->
+    <section id="exercisesScreen" class="hidden flex flex-col w-full pb-20 gap-space-md pt-3">
+      <div class="flex items-center justify-between gap-space-xs">
+        <div>
+          <h1 class="font-headline-md text-headline-md text-on-surface tracking-tight font-bold">Exercise Catalog</h1>
+          <p id="catalogTotalCount" class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">187 Movements</p>
+        </div>
+        <button id="openCustomExerciseModalBtn" type="button" class="h-11 px-space-md bg-primary-container text-on-primary font-headline-sm text-headline-sm rounded-xl flex items-center gap-1.5 shadow-md active:scale-95 transition-transform shrink-0">
+          <span class="material-symbols-outlined text-[20px]">add</span>
+          <span class="font-label-numeric-sm text-label-numeric-sm uppercase font-bold">Custom</span>
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative w-full">
+        <div class="w-full bg-surface-container-high rounded-xl flex items-center px-space-md py-3 shadow-md focus-within:bg-surface-container-highest transition-colors border border-surface-container-high">
+          <span class="material-symbols-outlined text-on-surface-variant text-[24px] shrink-0 mr-space-xs">search</span>
+          <input id="catalogSearchInput" type="text" autocomplete="off" placeholder="Search exercises (e.g. Sissy Squat, Bench, Wrist Curl, Farmer's Walk)..." class="w-full bg-transparent text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md focus:outline-none min-w-0" />
+          <button id="catalogClearSearchBtn" type="button" class="hidden p-1 text-on-surface-variant hover:text-on-surface shrink-0 active:scale-90 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">cancel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Muscle Group Filter Pills -->
+      <div class="flex flex-col gap-space-xs -mx-gutter-mobile px-gutter-mobile overflow-x-auto no-scrollbar">
+        <div id="catalogMuscleFilterPills" class="flex items-center gap-space-xs shrink-0 py-1">
+          <button type="button" data-filter="all" class="filter-pill active px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-primary-container text-on-primary shadow-sm active:scale-95">All (187)</button>
+          <button type="button" data-filter="chest" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Chest</button>
+          <button type="button" data-filter="back" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Back</button>
+          <button type="button" data-filter="delts" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Delts / Shoulders</button>
+          <button type="button" data-filter="arms" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Arms (Biceps/Triceps)</button>
+          <button type="button" data-filter="forearms" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Forearms & Grip</button>
+          <button type="button" data-filter="neck" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Neck</button>
+          <button type="button" data-filter="core" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Core / Abs</button>
+          <button type="button" data-filter="legs" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Legs / Quads</button>
+          <button type="button" data-filter="calves" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Calves</button>
+          <button type="button" data-filter="full body" class="filter-pill px-4 py-2 rounded-xl font-label-caps text-label-caps uppercase tracking-wider transition-all bg-surface-container text-on-surface-variant hover:text-on-surface shadow-sm active:scale-95">Full Body</button>
+        </div>
+      </div>
+
+      <!-- Modality Filter Chips -->
+      <div class="flex items-center gap-space-xs overflow-x-auto no-scrollbar -mx-gutter-mobile px-gutter-mobile pb-1">
+        <span class="font-label-caps text-label-caps text-on-surface-variant shrink-0 uppercase tracking-widest mr-1 text-xs">MODALITY:</span>
+        <button type="button" data-modality="Free Weights" class="catalog-modality-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-label-caps text-label-caps uppercase whitespace-nowrap hover:bg-surface-container active:scale-95 transition-all">Free Weights</button>
+        <button type="button" data-modality="Calisthenics" class="catalog-modality-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-label-caps text-label-caps uppercase whitespace-nowrap hover:bg-surface-container active:scale-95 transition-all">Calisthenics</button>
+        <button type="button" data-modality="Cables & Machines" class="catalog-modality-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-label-caps text-label-caps uppercase whitespace-nowrap hover:bg-surface-container active:scale-95 transition-all">Cables & Machines</button>
+      </div>
+
+      <!-- Exercise Cards Feed -->
+      <div id="catalogExerciseList" class="flex flex-col gap-space-sm mt-1">
+        <!-- Injected dynamically by app.js -->
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 3: WORKOUT HISTORY & LOGS (#history)-->
+    <!-- ========================================== -->
+    <section id="historyScreen" class="hidden flex flex-col w-full pb-20 gap-space-md pt-3">
+      <!-- Telemetry Deck -->
+      <section class="flex flex-col gap-space-xs">
+        <div class="flex items-baseline justify-between px-space-2xs">
+          <h2 class="font-headline-sm text-headline-sm text-on-surface tracking-tight uppercase font-bold">Performance Cycle</h2>
+          <span class="font-label-caps text-label-caps text-primary uppercase font-bold">Lifetime Stats</span>
+        </div>
+        <div class="grid grid-cols-3 gap-space-xs">
+          <div class="flex flex-col p-space-sm rounded-xl bg-surface-container shadow-sm border border-surface-container-high/30">
+            <div class="flex items-center gap-1 text-on-surface-variant mb-1">
+              <span class="material-symbols-outlined text-[16px] text-primary">weight</span>
+              <span class="font-label-caps text-label-caps text-[11px]">Tonnage</span>
+            </div>
+            <span id="historyTotalTonnage" class="font-label-numeric-md text-label-numeric-md text-on-surface font-bold">0</span>
+            <span class="font-body-sm text-body-sm text-secondary font-medium mt-0.5 flex items-center text-xs">
+              <span class="material-symbols-outlined text-[14px]">arrow_upward</span> <span id="historyUnitLabel">kg</span> Total
+            </span>
+          </div>
+          <div class="flex flex-col p-space-sm rounded-xl bg-surface-container shadow-sm border border-surface-container-high/30">
+            <div class="flex items-center gap-1 text-on-surface-variant mb-1">
+              <span class="material-symbols-outlined text-[16px] text-tertiary">bolt</span>
+              <span class="font-label-caps text-label-caps text-[11px]">Sessions</span>
+            </div>
+            <span id="historySessionsCount" class="font-label-numeric-md text-label-numeric-md text-on-surface font-bold">0</span>
+            <span class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 text-xs">Completed</span>
+          </div>
+          <div class="flex flex-col p-space-sm rounded-xl bg-surface-container shadow-sm border border-surface-container-high/30">
+            <div class="flex items-center gap-1 text-on-surface-variant mb-1">
+              <span class="material-symbols-outlined text-[16px] text-primary-container">military_tech</span>
+              <span class="font-label-caps text-label-caps text-[11px]">PR Hits</span>
+            </div>
+            <span id="historyPRCount" class="font-label-numeric-md text-label-numeric-md text-primary-container font-bold">0</span>
+            <span class="font-body-sm text-body-sm text-secondary mt-0.5 text-xs">Overload Target</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7-Day Overload Sparkline Chart -->
+      <section class="p-space-sm rounded-xl bg-surface-container-low flex flex-col gap-space-xs border border-surface-container-high/30">
+        <div class="flex justify-between items-center">
+          <span class="font-label-caps text-label-caps text-on-surface-variant uppercase text-xs font-bold">Weekly Load Trajectory</span>
+          <span class="font-label-numeric-sm text-label-numeric-sm text-secondary font-semibold">Tonnage / Day</span>
+        </div>
+        <div id="historySparklineContainer" class="w-full h-20 flex items-end justify-between pt-2 px-1">
+          <!-- Injected dynamically by app.js -->
+        </div>
+      </section>
+
+      <!-- Session Feed -->
+      <section class="flex flex-col gap-space-sm">
+        <div class="flex items-center justify-between px-space-2xs">
+          <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold text-xs">Logged Workouts Archive</span>
+        </div>
+        <div id="historySessionsList" class="flex flex-col gap-space-sm">
+          <!-- Injected dynamically by app.js -->
+        </div>
+      </section>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 4: SYNC & SETTINGS (#sync)          -->
+    <!-- ========================================== -->
+    <section id="syncScreen" class="hidden flex flex-col w-full pb-20 gap-space-md pt-3">
+      <div class="flex flex-col gap-1">
+        <h1 class="font-headline-md text-headline-md text-on-surface font-bold">Settings & Backup</h1>
+        <p class="font-body-sm text-on-surface-variant">Manage units, export data backups, or restore catalog.</p>
+      </div>
+
+      <!-- Unit Configuration -->
+      <div class="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm shadow-md border border-surface-container-high/30">
+        <span class="font-headline-sm text-on-surface font-bold">Measurement Unit</span>
+        <div class="flex items-center gap-3 pt-1">
+          <button id="settingsUnitKgBtn" class="flex-1 h-12 rounded-xl bg-primary-container text-on-primary font-headline-sm text-sm uppercase flex items-center justify-center gap-2 active:scale-95 shadow-md font-bold">
+            <span>Metric (Kilograms - KG)</span>
+          </button>
+          <button id="settingsUnitLbsBtn" class="flex-1 h-12 rounded-xl bg-surface-container-high text-on-surface font-headline-sm text-sm uppercase flex items-center justify-center gap-2 active:scale-95 shadow-md hover:bg-surface-bright">
+            <span>Imperial (Pounds - LBS)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Download Native Flutter Android APK -->
+      <div class="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm shadow-md border border-primary/40">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[24px]">android</span>
+          <span class="font-headline-sm text-on-surface font-bold">Download Native Android App</span>
+        </div>
+        <p class="font-body-sm text-on-surface-variant">Install the native Flutter APK on your Android device for 100% offline resistance logging.</p>
+        
+        <a href="./ironpulse.apk" download="ironpulse.apk" class="mt-1 w-full h-12 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary font-headline-sm text-sm uppercase flex items-center justify-center gap-2 active:scale-95 shadow-md font-bold transition-all">
+          <span class="material-symbols-outlined text-[20px]">download</span>
+          <span>Download IronPulse APK (49.4 MB)</span>
+        </a>
+      </div>
+
+      <!-- Offline Backup / Restore -->
+      <div class="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm shadow-md border border-surface-container-high/30">
+        <span class="font-headline-sm text-on-surface font-bold">Full Data Backup & Export</span>
+        <p class="font-body-sm text-on-surface-variant">Export your exercise logs, custom movements, and history as a standalone JSON file.</p>
+        
+        <div class="flex items-center gap-3 pt-2">
+          <button id="exportBackupBtn" class="flex-1 h-12 rounded-xl bg-primary-container text-on-primary font-headline-sm text-sm uppercase flex items-center justify-center gap-2 active:scale-95 shadow-md">
+            <span class="material-symbols-outlined text-[20px]">download</span>
+            <span>Export Backup</span>
+          </button>
+          <button id="importBackupBtn" class="flex-1 h-12 rounded-xl bg-surface-container-high text-on-surface font-headline-sm text-sm uppercase flex items-center justify-center gap-2 active:scale-95 shadow-md hover:bg-surface-bright">
+            <span class="material-symbols-outlined text-[20px]">upload</span>
+            <span>Import Backup</span>
+          </button>
+          <input id="importBackupFileInput" type="file" accept=".json" class="hidden"/>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- FLOATING REST TIMER OVERLAY WIDGET         -->
+  <!-- ========================================== -->
+  <div id="rest-timer-widget" class="hidden fixed bottom-20 left-0 right-0 px-gutter-mobile z-40 max-w-4xl mx-auto">
+    <div class="relative bg-surface-container-high rounded-xl p-space-sm shadow-2xl flex items-center justify-between gap-space-xs overflow-hidden border border-tertiary/30">
+      <div id="timer-progress" class="absolute top-0 left-0 h-1 bg-tertiary transition-all duration-1000" style="width: 100%;"></div>
+      <div class="flex items-center gap-space-xs min-w-0">
+        <div class="relative w-11 h-11 shrink-0 flex items-center justify-center">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+            <path class="text-surface-container-lowest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+            <path id="circle-progress" class="text-tertiary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-linecap="round" stroke-width="3.5"></path>
+          </svg>
+          <span class="material-symbols-outlined absolute text-[20px] text-tertiary">timer</span>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-1">
+            <span class="font-label-caps text-label-caps text-tertiary uppercase font-bold text-xs">Rest Interval</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+          </div>
+          <span id="rest-time-display" class="font-label-numeric-lg text-label-numeric-lg text-on-surface leading-none font-bold">01:30</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="add-rest-30s" class="h-touch-compact px-3 rounded-lg bg-surface-container-lowest text-tertiary font-label-numeric-sm text-label-numeric-sm font-semibold active:bg-surface-bright border border-surface-container-highest">
+          +30s
+        </button>
+        <button id="skip-rest-btn" class="h-touch-compact px-2.5 rounded-lg bg-surface-container-lowest text-on-surface-variant font-headline-sm text-headline-sm flex items-center justify-center active:text-on-surface active:bg-surface-bright border border-surface-container-highest" title="Skip Rest">
+          <span class="material-symbols-outlined text-[20px]">skip_next</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SETTINGS & PARAMETER CUSTOMIZER     -->
+  <!-- ========================================== -->
+  <div id="exerciseSettingsModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-container-high w-full max-w-md rounded-t-2xl sm:rounded-2xl p-space-md flex flex-col gap-space-sm shadow-2xl border border-surface-container-highest">
+      <div class="flex items-center justify-between pb-space-xs border-b border-surface-container-highest">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[24px]">tune</span>
+          <h2 id="settingsExModalTitle" class="font-headline-md text-headline-md text-on-surface font-bold">Customize Movement</h2>
+        </div>
+        <button id="closeSettingsModalBtn" class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[24px]">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Target Rep Range</label>
+          <input id="settingsRepRangeInput" type="text" placeholder="e.g. 6-8 Reps, 8-10 Reps, 12-15 Reps" class="w-full bg-surface-container-lowest text-on-surface rounded-xl p-3 outline-none border border-surface-container-highest font-body-md" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-space-xs">
+          <div class="flex flex-col gap-1">
+            <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Target RPE</label>
+            <input id="settingsRPEInput" type="number" step="0.5" placeholder="8.5" class="w-full bg-surface-container-lowest text-primary font-label-numeric-md rounded-xl p-3 outline-none border border-surface-container-highest" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Rest Timer (Seconds)</label>
+            <input id="settingsRestInput" type="number" step="15" placeholder="120" class="w-full bg-surface-container-lowest text-tertiary font-label-numeric-md rounded-xl p-3 outline-none border border-surface-container-highest" />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Tempo / Form Notes</label>
+          <input id="settingsTempoInput" type="text" placeholder="e.g. Controlled eccentric, 3-0-1-0" class="w-full bg-surface-container-lowest text-on-surface rounded-xl p-3 outline-none border border-surface-container-highest font-body-md" />
+        </div>
+      </div>
+
+      <button id="saveExerciseSettingsBtn" class="mt-2 w-full h-12 rounded-xl bg-primary-container text-on-primary font-headline-sm uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 shadow-md font-bold">
+        <span class="material-symbols-outlined text-[20px]">check</span>
+        <span>Apply Parameters</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CREATE CUSTOM EXERCISE              -->
+  <!-- ========================================== -->
+  <div id="customExerciseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-container-high w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-space-md flex flex-col gap-space-sm shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-space-xs border-b border-surface-container-highest">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[24px]">add_circle</span>
+          <h2 class="font-headline-md text-headline-md text-on-surface font-bold">New Custom Movement</h2>
+        </div>
+        <button id="closeCustomModalBtn" class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[24px]">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-space-xs">
+        <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Movement Name *</label>
+        <input id="customExNameInput" type="text" placeholder="e.g. Ring Archer Push-Up, Deficit RDL..." class="w-full bg-surface-container-lowest text-on-surface rounded-xl p-3 outline-none border border-surface-container-highest focus:border-primary font-body-md" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-space-xs">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Primary Muscle</label>
+          <select id="customExMuscleGroup" class="w-full bg-surface-container-lowest text-on-surface rounded-xl p-3 outline-none border border-surface-container-highest font-body-md">
+            <option value="Chest">Chest</option>
+            <option value="Back">Back</option>
+            <option value="Shoulders">Shoulders / Delts</option>
+            <option value="Biceps">Biceps</option>
+            <option value="Triceps">Triceps</option>
+            <option value="Forearms">Forearms & Grip</option>
+            <option value="Neck">Neck</option>
+            <option value="Core">Core / Abs</option>
+            <option value="Legs">Legs / Quads</option>
+            <option value="Calves">Calves</option>
+            <option value="Full Body">Full Body</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Modality</label>
+          <select id="customExModality" class="w-full bg-surface-container-lowest text-on-surface rounded-xl p-3 outline-none border border-surface-container-highest font-body-md">
+            <option value="Free Weights">Free Weights</option>
+            <option value="Calisthenics">Calisthenics</option>
+            <option value="Cables & Machines">Cables & Machines</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="saveCustomExerciseBtn" class="mt-2 w-full h-12 rounded-xl bg-primary-container text-on-primary font-headline-sm uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 shadow-md font-bold">
+        <span class="material-symbols-outlined text-[20px]">save</span>
+        <span>Save to Exercise Catalog</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PLATE CALCULATOR                    -->
+  <!-- ========================================== -->
+  <div id="plateCalcModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-container-high w-full max-w-md rounded-t-2xl sm:rounded-2xl p-space-md flex flex-col gap-space-sm shadow-2xl border border-surface-container-highest">
+      <div class="flex items-center justify-between pb-space-xs border-b border-surface-container-highest">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-[24px]">calculate</span>
+          <h2 class="font-headline-md text-headline-md text-on-surface font-bold">Plate Calculator</h2>
+        </div>
+        <button id="closePlateCalcBtn" class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[24px]">close</span>
+        </button>
+      </div>
+
+      <span id="plateCalcExerciseName" class="font-body-sm text-on-surface-variant font-medium">Barbell Bench Press</span>
+
+      <div class="grid grid-cols-2 gap-space-xs">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Total Weight (<span class="unit-text-span">kg</span>)</label>
+          <input id="plateCalcWeightInput" type="number" step="2.5" class="w-full bg-surface-container-lowest text-primary font-label-numeric-lg text-center rounded-xl p-2 outline-none border border-surface-container-highest" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-caps text-xs text-on-surface-variant uppercase font-bold">Barbell (<span class="unit-text-span">kg</span>)</label>
+          <select id="plateCalcBarWeight" class="w-full bg-surface-container-lowest text-on-surface font-label-numeric-md rounded-xl p-3 outline-none border border-surface-container-highest">
+            <option value="20" selected>Olympic Bar (20 kg / 45 lbs)</option>
+            <option value="15">Women's Bar (15 kg / 35 lbs)</option>
+            <option value="10">EZ-Curl Bar (10 kg / 25 lbs)</option>
+            <option value="0">Zero / Dumbbell (0)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-surface-container-low flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="font-label-caps text-xs text-on-surface-variant uppercase">Total Barbell Load:</span>
+          <span id="plateCalcTotal" class="font-label-numeric-md text-secondary font-bold">0 kg</span>
+        </div>
+        <div id="plateCalcPlatesList" class="flex flex-col gap-2 pt-1 border-t border-surface-container-high/40">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- TOAST NOTIFICATION                         -->
+  <!-- ========================================== -->
+  <div id="appToast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-highest/95 border border-primary/30 text-on-surface shadow-2xl backdrop-blur-xl transition-all duration-300 opacity-0 translate-y-4 pointer-events-none">
+    <span id="appToastIcon" class="material-symbols-outlined text-[20px] text-secondary">check_circle</span>
+    <span id="appToastText" class="font-body-md text-sm font-semibold">Action completed</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- FIXED BOTTOM NAVIGATION BAR                -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 w-full z-40 pb-safe bg-surface-container-lowest/95 backdrop-blur-xl border-t border-surface-container-high/40 shadow-[0_-4px_16px_rgba(0,0,0,0.4)]">
+    <div class="grid grid-cols-4 h-16 max-w-4xl mx-auto px-space-2xs items-center">
+      <a href="#workout" data-path="workout" class="flex flex-col items-center justify-center min-h-[44px] h-full transition-colors gap-1 text-primary-container font-headline-sm">
+        <span class="material-symbols-outlined text-[24px]">fitness_center</span>
+        <span class="font-label-caps text-[11px] tracking-wider uppercase font-bold">Workout</span>
+      </a>
+      <a href="#exercises" data-path="exercises" class="flex flex-col items-center justify-center min-h-[44px] h-full text-on-surface-variant hover:text-on-surface transition-colors gap-1">
+        <span class="material-symbols-outlined text-[24px]">menu_book</span>
+        <span class="font-label-caps text-[11px] tracking-wider uppercase font-bold">Exercises</span>
+      </a>
+      <a href="#history" data-path="history" class="flex flex-col items-center justify-center min-h-[44px] h-full text-on-surface-variant hover:text-on-surface transition-colors gap-1">
+        <span class="material-symbols-outlined text-[24px]">history</span>
+        <span class="font-label-caps text-[11px] tracking-wider uppercase font-bold">History</span>
+      </a>
+      <a href="#sync" data-path="sync" class="flex flex-col items-center justify-center min-h-[44px] h-full text-on-surface-variant hover:text-on-surface transition-colors gap-1">
+        <span class="material-symbols-outlined text-[24px]">settings</span>
+        <span class="font-label-caps text-[11px] tracking-wider uppercase font-bold">Settings</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Application Scripts -->
+  <script src="./data/exercises-data.js?v=5"></script>
+  <script src="./js/db.js?v=5"></script>
+  <script src="./js/app.js?v=5"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js?v=5').then((reg) => {
+          reg.update();
+          console.log('[IronPulse] Service Worker registered with scope:', reg.scope);
+        }).catch((err) => {
+          console.log('[IronPulse] Service Worker registration failed:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
